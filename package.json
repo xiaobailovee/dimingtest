@@ -1,0 +1,15 @@
+{
+  "name": "talking",
+  "version": "1.0.0",
+  "description": "基于 uni-app + Vue3 开发的跨平台 AI 聊天应用",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "uview-plus": "^3.6.29"
+  }
+}

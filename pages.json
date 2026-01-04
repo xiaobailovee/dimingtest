@@ -1,0 +1,84 @@
+{
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			"^u-(.*)": "uview-plus/components/u-$1/u-$1.vue"
+		}
+	},
+	"pages": [
+		{
+			"path": "pages/chat-list/chat-list",
+			"style": {
+				"navigationBarTitleText": "对话列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/chat-detail/chat-detail",
+			"style": {
+				"navigationBarTitleText": "聊天详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/contact/contact",
+			"style": {
+				"navigationBarTitleText": "联系人",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/contact-detail/contact-detail",
+			"style": {
+				"navigationBarTitleText": "联系人详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationBarTitleText": "个人中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile-edit/profile-edit",
+			"style": {
+				"navigationBarTitleText": "编辑资料",
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#8f8f94",
+		"selectedColor": "#1296db",
+		"backgroundColor": "#ffffff",
+		"borderStyle": "black",
+		"list": [
+			{
+				"pagePath": "pages/chat-list/chat-list",
+				"text": "对话",
+				"iconPath": "static/shouye.png",
+				"selectedIconPath": "static/shouye-s.png"
+			},
+			{
+				"pagePath": "pages/contact/contact",
+				"text": "联系人",
+				"iconPath": "static/lianxiren.png",
+				"selectedIconPath": "static/lianxiren-s.png"
+			},
+			{
+				"pagePath": "pages/profile/profile",
+				"text": "我的",
+				"iconPath": "static/wode.png",
+				"selectedIconPath": "static/wode-s.png"
+			}
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "Companion AI",
+		"navigationBarBackgroundColor": "#6ECFBD",
+		"backgroundColor": "#F8F8F8"
+	}
+}
