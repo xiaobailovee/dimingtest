@@ -52,18 +52,28 @@ import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { contacts } from '@/utils/mock-data.js';
 
-const contactId = ref(null);
-const contactInfo = ref({});
+// 联系人数据
+const contactId = ref(null); // 联系人ID
+const contactInfo = ref({}); // 联系人详细信息
 
+/**
+ * 页面加载时获取联系人信息
+ */
 onLoad((options) => {
 	contactId.value = parseInt(options.id);
 	contactInfo.value = contacts.find(c => c.id === contactId.value) || {};
 });
 
+/**
+ * 返回上一页
+ */
 const goBack = () => {
 	uni.navigateBack();
 };
 
+/**
+ * 发起对话（跳转到聊天详情页）
+ */
 const startChat = () => {
 	uni.navigateTo({
 		url: `/pages/chat-detail/chat-detail?id=${contactId.value}`

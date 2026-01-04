@@ -69,6 +69,7 @@ import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { userInfo as userInfoData } from '@/utils/mock-data.js';
 
+// 表单数据
 const formData = ref({
 	avatar: '',
 	nickname: '',
@@ -76,21 +77,28 @@ const formData = ref({
 	signature: ''
 });
 
+/**
+ * 页面加载时初始化表单数据
+ */
 onLoad(() => {
-	// 加载用户信息
 	formData.value = { ...userInfoData };
 });
 
+/**
+ * 返回上一页
+ */
 const goBack = () => {
 	uni.navigateBack();
 };
 
-// 选择头像
+/**
+ * 选择头像（支持相册和相机）
+ */
 const chooseAvatar = () => {
 	uni.chooseImage({
-		count: 1,
-		sizeType: ['compressed'],
-		sourceType: ['album', 'camera'],
+		count: 1, // 只选择一张
+		sizeType: ['compressed'], // 压缩图片
+		sourceType: ['album', 'camera'], // 相册或相机
 		success: (res) => {
 			formData.value.avatar = res.tempFilePaths[0];
 			uni.showToast({
@@ -109,9 +117,12 @@ const chooseAvatar = () => {
 	});
 };
 
-// 保存资料
+/**
+ * 保存个人资料
+ * 包含表单验证、数据更新、成功提示
+ */
 const saveProfile = () => {
-	// 验证昵称
+	// 验证昵称不能为空
 	if (!formData.value.nickname.trim()) {
 		uni.showToast({
 			title: '请输入昵称',
@@ -121,16 +132,16 @@ const saveProfile = () => {
 		return;
 	}
 	
-	// 这里可以调用API保存数据
-	// 目前只是模拟保存
+	// 显示加载状态
 	uni.showLoading({
 		title: '保存中...'
 	});
 	
+	// 模拟保存过程（实际项目中应调用API）
 	setTimeout(() => {
 		uni.hideLoading();
 		
-		// 更新本地数据（实际应该从服务器返回）
+		// 更新本地数据（实际应从服务器返回）
 		Object.assign(userInfoData, formData.value);
 		
 		uni.showToast({
@@ -139,7 +150,7 @@ const saveProfile = () => {
 			duration: 1500
 		});
 		
-		// 延迟返回上一页
+		// 延迟返回上一页，让用户看到成功提示
 		setTimeout(() => {
 			uni.navigateBack();
 		}, 1500);

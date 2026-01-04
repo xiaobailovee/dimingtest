@@ -1,4 +1,9 @@
-// Mock 数据
+/**
+ * Mock数据文件
+ * 包含对话列表、联系人列表、聊天消息、用户信息等模拟数据
+ */
+
+// 对话列表数据
 export const chatList = [
 	{
 		id: 1,
@@ -26,6 +31,7 @@ export const chatList = [
 	}
 ];
 
+// 联系人列表数据
 export const contacts = [
 	{
 		id: 1,
@@ -57,6 +63,7 @@ export const contacts = [
 	}
 ];
 
+// 聊天消息数据（按chatId分组）
 export const messages = {
 	1: [
 		{
@@ -110,6 +117,7 @@ export const messages = {
 	]
 };
 
+// 当前用户信息
 export const userInfo = {
 	avatar: 'https://cdn.xfzh.top/default-user-avatar/user4.jpeg',
 	nickname: '用户昵称',

@@ -111,36 +111,51 @@ import { ref, nextTick } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { chatList, messages as messagesData, userInfo as userInfoData } from '@/utils/mock-data.js';
 
-const chatId = ref(null);
-const chatInfo = ref({});
-const messages = ref([]);
-const inputText = ref('');
-const scrollToView = ref('');
-const userInfo = ref({});
-const refreshing = ref(false);
-const loadingMore = ref(false);
-const noMoreData = ref(false);
+// 聊天相关数据
+const chatId = ref(null); // 当前聊天ID
+const chatInfo = ref({}); // 聊天对象信息
+const messages = ref([]); // 消息列表
+const inputText = ref(''); // 输入框内容
+const scrollToView = ref(''); // 滚动目标元素ID
+const userInfo = ref({}); // 当前用户信息
 
+// 加载状态
+const refreshing = ref(false); // 下拉刷新状态
+const loadingMore = ref(false); // 上拉加载状态
+const noMoreData = ref(false); // 是否没有更多数据
+
+/**
+ * 页面加载时初始化数据
+ */
 onLoad((options) => {
 	chatId.value = parseInt(options.id);
 	chatInfo.value = chatList.find(c => c.id === chatId.value) || {};
-	// 为每条消息添加点赞状态
+	
+	// 为每条消息添加点赞/点踩状态
 	messages.value = (messagesData[chatId.value] || []).map(msg => ({
 		...msg,
 		liked: false,
 		disliked: false
 	}));
+	
 	userInfo.value = userInfoData;
 	scrollToBottom();
 });
 
+/**
+ * 返回上一页
+ */
 const goBack = () => {
 	uni.navigateBack();
 };
 
+/**
+ * 发送消息
+ */
 const sendMessage = () => {
 	if (!inputText.value.trim()) return;
 	
+	// 创建新消息
 	const newMsg = {
 		id: messages.value.length + 1,
 		type: 'sent',
@@ -153,16 +168,20 @@ const sendMessage = () => {
 	messages.value.push(newMsg);
 	inputText.value = '';
 	
+	// 滚动到底部
 	nextTick(() => {
 		scrollToBottom();
 	});
 	
-	// 模拟AI回复
+	// 模拟AI回复（1秒后）
 	setTimeout(() => {
 		simulateReply();
 	}, 1000);
 };
 
+/**
+ * 模拟AI自动回复
+ */
 const simulateReply = () => {
 	const replies = [
 		'收到！让我想想...',
@@ -170,6 +189,7 @@ const simulateReply = () => {
 		'我明白了，让我为你分析一下',
 		'好的，我来帮你'
 	];
+	
 	const reply = {
 		id: messages.value.length + 1,
 		type: 'received',
@@ -178,31 +198,33 @@ const simulateReply = () => {
 		liked: false,
 		disliked: false
 	};
+	
 	messages.value.push(reply);
 	nextTick(() => {
 		scrollToBottom();
 	});
 };
 
+/**
+ * 切换点赞状态
+ * @param {number} msgId - 消息ID
+ */
 const toggleLike = (msgId) => {
 	const msg = messages.value.find(m => m.id === msgId);
 	if (msg) {
-		const wasLiked = msg.liked;
 		msg.liked = !msg.liked;
 		
 		if (msg.liked) {
-			// 点赞时取消不喜欢
+			// 点赞时自动取消点踩（互斥）
 			if (msg.disliked) {
 				msg.disliked = false;
 			}
-			// 显示点赞成功提示
 			uni.showToast({
 				title: '已点赞',
 				icon: 'success',
 				duration: 1500
 			});
 		} else {
-			// 取消点赞提示
 			uni.showToast({
 				title: '已取消点赞',
 				icon: 'none',
@@ -212,25 +234,26 @@ const toggleLike = (msgId) => {
 	}
 };
 
+/**
+ * 切换点踩状态
+ * @param {number} msgId - 消息ID
+ */
 const toggleDislike = (msgId) => {
 	const msg = messages.value.find(m => m.id === msgId);
 	if (msg) {
-		const wasDisliked = msg.disliked;
 		msg.disliked = !msg.disliked;
 		
 		if (msg.disliked) {
-			// 不喜欢时取消点赞
+			// 点踩时自动取消点赞（互斥）
 			if (msg.liked) {
 				msg.liked = false;
 			}
-			// 显示不喜欢提示
 			uni.showToast({
 				title: '已标记不喜欢',
 				icon: 'none',
 				duration: 1500
 			});
 		} else {
-			// 取消不喜欢提示
 			uni.showToast({
 				title: '已取消标记',
 				icon: 'none',
@@ -240,27 +263,33 @@ const toggleDislike = (msgId) => {
 	}
 };
 
+/**
+ * 滚动到消息列表底部
+ */
 const scrollToBottom = () => {
 	if (messages.value.length > 0) {
 		scrollToView.value = 'msg-' + messages.value[messages.value.length - 1].id;
 	}
 };
 
+/**
+ * 获取当前时间（HH:MM格式）
+ */
 const getCurrentTime = () => {
 	const now = new Date();
 	return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
 };
 
-// 下拉刷新
+/**
+ * 下拉刷新（加载历史消息）
+ */
 const onRefresh = () => {
 	if (refreshing.value) return;
 	
 	refreshing.value = true;
 	
-	// 模拟加载历史消息
+	// 模拟加载历史消息（实际项目中应调用API）
 	setTimeout(() => {
-		// 这里可以添加加载历史消息的逻辑
-		// 目前只是模拟，显示提示
 		uni.showToast({
 			title: '已是最新消息',
 			icon: 'none',
@@ -270,16 +299,16 @@ const onRefresh = () => {
 	}, 1000);
 };
 
-// 上拉加载更多
+/**
+ * 上拉加载更多历史消息
+ */
 const onLoadMore = () => {
 	if (loadingMore.value || noMoreData.value) return;
 	
 	loadingMore.value = true;
 	
-	// 模拟加载更多历史消息
+	// 模拟加载更多历史消息（实际项目中应调用API）
 	setTimeout(() => {
-		// 这里可以添加加载更多历史消息的逻辑
-		// 目前只是模拟，显示提示
 		uni.showToast({
 			title: '暂无更多消息',
 			icon: 'none',
@@ -290,7 +319,9 @@ const onLoadMore = () => {
 	}, 1000);
 };
 
-// 滚动事件
+/**
+ * 滚动事件处理（未使用，保留供参考）
+ */
 const onScroll = (e) => {
 	const { scrollTop, scrollHeight } = e.detail;
 	

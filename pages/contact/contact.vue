@@ -45,12 +45,20 @@
 import { ref, onMounted } from 'vue';
 import { contacts as contactsData } from '@/utils/mock-data.js';
 
+// 联系人列表数据
 const contacts = ref([]);
 
+/**
+ * 页面加载时初始化联系人列表
+ */
 onMounted(() => {
 	contacts.value = contactsData;
 });
 
+/**
+ * 打开联系人详情页
+ * @param {number} contactId - 联系人ID
+ */
 const openChat = (contactId) => {
 	uni.navigateTo({
 		url: `/pages/contact-detail/contact-detail?id=${contactId}`

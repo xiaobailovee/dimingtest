@@ -63,13 +63,20 @@ import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { userInfo as userInfoData } from '@/utils/mock-data.js';
 
+// 当前用户信息
 const userInfo = ref({});
 
-// 使用onShow代替onMounted，每次页面显示时都会刷新数据
+/**
+ * 页面显示时刷新用户数据
+ * 使用onShow而非onMounted，确保从编辑页返回时能看到最新数据
+ */
 onShow(() => {
 	userInfo.value = { ...userInfoData };
 });
 
+/**
+ * 跳转到编辑资料页
+ */
 const goToEdit = () => {
 	uni.navigateTo({
 		url: '/pages/profile-edit/profile-edit'

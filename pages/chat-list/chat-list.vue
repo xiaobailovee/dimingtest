@@ -52,32 +52,41 @@
 import { ref, onMounted } from 'vue';
 import { chatList as chatListData } from '@/utils/mock-data.js';
 
+// 对话列表数据
 const chatList = ref([]);
+// 下拉刷新状态
 const refreshing = ref(false);
 
+// 页面加载时初始化数据
 onMounted(() => {
 	chatList.value = chatListData;
 });
 
+/**
+ * 打开聊天详情页
+ * @param {number} chatId - 聊天ID
+ */
 const openChat = (chatId) => {
-	// 清除未读消息
+	// 清除未读消息红点
 	const chat = chatList.value.find(c => c.id === chatId);
 	if (chat) {
 		chat.unread = 0;
 	}
 	
+	// 跳转到聊天详情页
 	uni.navigateTo({
 		url: `/pages/chat-detail/chat-detail?id=${chatId}`
 	});
 };
 
-// 下拉刷新
+/**
+ * 下拉刷新对话列表
+ */
 const onRefresh = () => {
 	refreshing.value = true;
 	
-	// 模拟刷新数据
+	// 模拟刷新数据（实际项目中应调用API）
 	setTimeout(() => {
-		// 这里可以添加刷新对话列表的逻辑
 		chatList.value = chatListData;
 		
 		uni.showToast({
@@ -90,7 +99,9 @@ const onRefresh = () => {
 	}, 1000);
 };
 
-// 刷新恢复
+/**
+ * 刷新恢复回调
+ */
 const onRestore = () => {
 	refreshing.value = false;
 };
