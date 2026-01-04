@@ -45,16 +45,30 @@
 				></u-avatar>
 				<view class="msg-content-wrapper">
 					<view class="msg-bubble">
-						<text class="msg-text">{{ msg.content }}</text>
-						<u-image 
-							v-if="msg.image" 
-							:src="msg.image" 
-							width="300rpx"
-							height="400rpx"
-							radius="12"
-							:showLoading="true"
-							class="msg-image"
-						></u-image>
+						<!-- 文字内容 -->
+						<text v-if="msg.content" class="msg-text">{{ msg.content }}</text>
+						
+						<!-- 多图网格布局 -->
+						<view v-if="msg.images && msg.images.length > 0" class="images-grid" :class="'grid-' + msg.images.length">
+							<view 
+								v-for="(img, idx) in msg.images" 
+								:key="idx"
+								class="grid-item"
+								@tap="previewMessageImage(msg.images, idx)"
+							>
+								<image :src="img" class="grid-image" mode="aspectFill"></image>
+							</view>
+						</view>
+						
+						<!-- 旧版单图支持（兼容） -->
+						<view v-if="msg.image" class="single-image-wrapper">
+							<image 
+								:src="msg.image" 
+								class="msg-single-image"
+								mode="aspectFill"
+								@tap="previewMessageImage([msg.image], 0)"
+							></image>
+						</view>
 						<!-- 点赞按钮只在接收的消息中显示 -->
 						<view v-if="msg.type === 'received'" class="msg-actions">
 							<view class="action-btn" @tap="toggleLike(msg.id)">
@@ -88,7 +102,34 @@
 		
 		<!-- 底部输入框 - 固定定位 -->
 		<view class="input-bar-fixed">
+			<!-- 图片预览区域 -->
+			<view v-if="selectedImages.length > 0" class="image-preview-area">
+				<scroll-view class="preview-scroll" scroll-x>
+					<view class="preview-list">
+						<view 
+							v-for="(img, index) in selectedImages" 
+							:key="index"
+							class="preview-item"
+						>
+							<image :src="img" class="preview-image" mode="aspectFill" @tap="previewSelectedImage(index)"></image>
+							<view class="remove-btn" @tap="removeImage(index)">
+								<u-icon name="close" size="12" color="#fff"></u-icon>
+							</view>
+						</view>
+						<!-- 添加更多按钮 -->
+						<view v-if="selectedImages.length < 9" class="preview-item add-more" @tap="chooseImage">
+							<u-icon name="plus" size="30" color="#999"></u-icon>
+						</view>
+					</view>
+				</scroll-view>
+			</view>
+			
 			<view class="input-bar">
+				<!-- 图片按钮 -->
+				<view class="icon-btn" @tap="chooseImage">
+					<u-icon name="photo" size="22" color="#999"></u-icon>
+				</view>
+				
 				<view class="input-wrapper">
 					<input 
 						class="input-native"
@@ -107,22 +148,39 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { chatList, messages as messagesData, userInfo as userInfoData } from '@/utils/mock-data.js';
+import { chatList, userInfo as userInfoData } from '@/utils/mock-data.js';
+import { useChatStore } from '@/stores/chat.js';
+
+// 使用Pinia store
+const chatStore = useChatStore();
 
 // 聊天相关数据
 const chatId = ref(null); // 当前聊天ID
 const chatInfo = ref({}); // 聊天对象信息
-const messages = ref([]); // 消息列表
 const inputText = ref(''); // 输入框内容
 const scrollToView = ref(''); // 滚动目标元素ID
 const userInfo = ref({}); // 当前用户信息
+
+// 图片相关
+const selectedImages = ref([]); // 已选择的图片列表
 
 // 加载状态
 const refreshing = ref(false); // 下拉刷新状态
 const loadingMore = ref(false); // 上拉加载状态
 const noMoreData = ref(false); // 是否没有更多数据
+
+// 从store获取消息列表（响应式）
+const messages = computed(() => {
+	const msgs = chatStore.getMessagesByChatId(chatId.value);
+	// 为每条消息添加点赞/点踩状态（如果没有的话）
+	return msgs.map(msg => ({
+		...msg,
+		liked: msg.liked || false,
+		disliked: msg.disliked || false
+	}));
+});
 
 /**
  * 页面加载时初始化数据
@@ -130,15 +188,11 @@ const noMoreData = ref(false); // 是否没有更多数据
 onLoad((options) => {
 	chatId.value = parseInt(options.id);
 	chatInfo.value = chatList.find(c => c.id === chatId.value) || {};
-	
-	// 为每条消息添加点赞/点踩状态
-	messages.value = (messagesData[chatId.value] || []).map(msg => ({
-		...msg,
-		liked: false,
-		disliked: false
-	}));
-	
 	userInfo.value = userInfoData;
+	
+	// 标记为已读
+	chatStore.markAsRead(chatId.value);
+	
 	scrollToBottom();
 });
 
@@ -150,23 +204,35 @@ const goBack = () => {
 };
 
 /**
- * 发送消息
+ * 发送消息（支持文字+图片混合发送）
  */
 const sendMessage = () => {
-	if (!inputText.value.trim()) return;
+	// 如果既没有文字也没有图片，不发送
+	if (!inputText.value.trim() && selectedImages.value.length === 0) return;
+	
+	// 获取当前聊天的消息列表，计算新消息ID
+	const currentMessages = chatStore.getMessagesByChatId(chatId.value);
+	const newId = currentMessages.length > 0 
+		? Math.max(...currentMessages.map(m => m.id)) + 1 
+		: 1;
 	
 	// 创建新消息
 	const newMsg = {
-		id: messages.value.length + 1,
+		id: newId,
 		type: 'sent',
-		content: inputText.value,
+		content: inputText.value.trim(),
+		images: selectedImages.value.length > 0 ? [...selectedImages.value] : undefined,
 		time: getCurrentTime(),
 		liked: false,
 		disliked: false
 	};
 	
-	messages.value.push(newMsg);
+	// 添加到store
+	chatStore.addMessage(chatId.value, newMsg);
+	
+	// 清空输入框和图片选择
 	inputText.value = '';
+	selectedImages.value = [];
 	
 	// 滚动到底部
 	nextTick(() => {
@@ -180,6 +246,63 @@ const sendMessage = () => {
 };
 
 /**
+ * 选择图片（不立即发送，添加到预览区）
+ */
+const chooseImage = () => {
+	// 计算还能选择多少张（最多9张）
+	const remainCount = 9 - selectedImages.value.length;
+	if (remainCount <= 0) {
+		uni.showToast({
+			title: '最多选择9张图片',
+			icon: 'none',
+			duration: 1500
+		});
+		return;
+	}
+	
+	uni.chooseImage({
+		count: remainCount,
+		sizeType: ['compressed'],
+		sourceType: ['album', 'camera'],
+		success: (res) => {
+			// 添加到已选择列表
+			selectedImages.value.push(...res.tempFilePaths);
+		}
+	});
+};
+
+/**
+ * 移除已选择的图片
+ * @param {number} index - 图片索引
+ */
+const removeImage = (index) => {
+	selectedImages.value.splice(index, 1);
+};
+
+/**
+ * 预览已选择的图片
+ * @param {number} index - 图片索引
+ */
+const previewSelectedImage = (index) => {
+	uni.previewImage({
+		current: index,
+		urls: selectedImages.value
+	});
+};
+
+/**
+ * 预览消息中的图片（点击图片放大查看）
+ * @param {Array} images - 图片数组
+ * @param {number} index - 当前图片索引
+ */
+const previewMessageImage = (images, index = 0) => {
+	uni.previewImage({
+		current: index,
+		urls: images
+	});
+};
+
+/**
  * 模拟AI自动回复
  */
 const simulateReply = () => {
@@ -190,8 +313,14 @@ const simulateReply = () => {
 		'好的，我来帮你'
 	];
 	
+	// 获取当前消息列表，计算新ID
+	const currentMessages = chatStore.getMessagesByChatId(chatId.value);
+	const newId = currentMessages.length > 0 
+		? Math.max(...currentMessages.map(m => m.id)) + 1 
+		: 1;
+	
 	const reply = {
-		id: messages.value.length + 1,
+		id: newId,
 		type: 'received',
 		content: replies[Math.floor(Math.random() * replies.length)],
 		time: getCurrentTime(),
@@ -199,7 +328,8 @@ const simulateReply = () => {
 		disliked: false
 	};
 	
-	messages.value.push(reply);
+	chatStore.addMessage(chatId.value, reply);
+	
 	nextTick(() => {
 		scrollToBottom();
 	});
@@ -212,13 +342,15 @@ const simulateReply = () => {
 const toggleLike = (msgId) => {
 	const msg = messages.value.find(m => m.id === msgId);
 	if (msg) {
-		msg.liked = !msg.liked;
+		const newLiked = !msg.liked;
+		const updates = {
+			liked: newLiked,
+			disliked: newLiked ? false : msg.disliked // 点赞时取消点踩
+		};
 		
-		if (msg.liked) {
-			// 点赞时自动取消点踩（互斥）
-			if (msg.disliked) {
-				msg.disliked = false;
-			}
+		chatStore.updateMessage(chatId.value, msgId, updates);
+		
+		if (newLiked) {
 			uni.showToast({
 				title: '已点赞',
 				icon: 'success',
@@ -241,13 +373,15 @@ const toggleLike = (msgId) => {
 const toggleDislike = (msgId) => {
 	const msg = messages.value.find(m => m.id === msgId);
 	if (msg) {
-		msg.disliked = !msg.disliked;
+		const newDisliked = !msg.disliked;
+		const updates = {
+			disliked: newDisliked,
+			liked: newDisliked ? false : msg.liked // 点踩时取消点赞
+		};
 		
-		if (msg.disliked) {
-			// 点踩时自动取消点赞（互斥）
-			if (msg.liked) {
-				msg.liked = false;
-			}
+		chatStore.updateMessage(chatId.value, msgId, updates);
+		
+		if (newDisliked) {
 			uni.showToast({
 				title: '已标记不喜欢',
 				icon: 'none',
@@ -471,9 +605,111 @@ page {
 	word-break: break-word;
 }
 
+/* 图片网格布局 */
+.images-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8rpx;
+	margin-top: 16rpx;
+	max-width: 100%;
+}
+
+/* 1张图片 - 大图显示，固定尺寸范围 */
+.images-grid.grid-1 .grid-item {
+	min-width: 200rpx;
+	max-width: 400rpx;
+	min-height: 200rpx;
+	max-height: 500rpx;
+}
+
+.images-grid.grid-1 .grid-image {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* 2-4张图片 - 2列布局，固定尺寸 */
+.images-grid.grid-2 .grid-item,
+.images-grid.grid-3 .grid-item,
+.images-grid.grid-4 .grid-item {
+	width: 180rpx;
+	height: 180rpx;
+}
+
+.images-grid.grid-2 .grid-image,
+.images-grid.grid-3 .grid-image,
+.images-grid.grid-4 .grid-image {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* 5-9张图片 - 3列布局，固定尺寸 */
+.images-grid.grid-5 .grid-item,
+.images-grid.grid-6 .grid-item,
+.images-grid.grid-7 .grid-item,
+.images-grid.grid-8 .grid-item,
+.images-grid.grid-9 .grid-item {
+	width: 120rpx;
+	height: 120rpx;
+}
+
+.images-grid.grid-5 .grid-image,
+.images-grid.grid-6 .grid-image,
+.images-grid.grid-7 .grid-image,
+.images-grid.grid-8 .grid-image,
+.images-grid.grid-9 .grid-image {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.grid-item {
+	border-radius: 12rpx;
+	overflow: hidden;
+	background: #f5f5f5;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.grid-image {
+	display: block;
+}
+
+/* 旧版单图支持 - 固定尺寸范围 */
+.single-image-wrapper {
+	margin-top: 16rpx;
+}
+
+.msg-single-image {
+	width: 300rpx;
+	height: 300rpx;
+	border-radius: 12rpx;
+	display: block;
+}
+
+/* 纯图片消息气泡样式 */
+.msg-bubble.image-only {
+	padding: 8rpx;
+	background: transparent;
+	box-shadow: none;
+}
+
+.sent .msg-bubble.image-only {
+	background: transparent;
+	box-shadow: none;
+}
+
 .msg-image {
 	margin-top: 15rpx;
 	display: block;
+	cursor: pointer;
+}
+
+/* 纯图片消息时，图片不需要上边距 */
+.msg-bubble.image-only .msg-image {
+	margin-top: 0;
 }
 
 .msg-actions {
@@ -564,9 +800,66 @@ page {
 	left: 0;
 	right: 0;
 	z-index: 100;
-	background: transparent;
+	background: #fff;
 	flex-shrink: 0;
 	padding: 0 30rpx 30rpx;
+	box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 图片预览区域 */
+.image-preview-area {
+	padding: 20rpx 0;
+	border-bottom: 1rpx solid #f0f0f0;
+}
+
+.preview-scroll {
+	width: 100%;
+	white-space: nowrap;
+}
+
+.preview-list {
+	display: inline-flex;
+	gap: 15rpx;
+}
+
+.preview-item {
+	position: relative;
+	width: 140rpx;
+	height: 140rpx;
+	border-radius: 12rpx;
+	overflow: hidden;
+	background: #f5f5f5;
+	flex-shrink: 0;
+}
+
+.preview-item.add-more {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 2rpx dashed #ddd;
+	background: #fafafa;
+}
+
+.preview-image {
+	width: 100%;
+	height: 100%;
+}
+
+.remove-btn {
+	position: absolute;
+	top: 6rpx;
+	right: 6rpx;
+	width: 36rpx;
+	height: 36rpx;
+	background: rgba(0, 0, 0, 0.6);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.remove-btn:active {
+	background: rgba(0, 0, 0, 0.8);
 }
 
 .input-bar {
@@ -574,6 +867,25 @@ page {
 	align-items: center;
 	gap: 20rpx;
 	padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 图片按钮 */
+.icon-btn {
+	width: 90rpx;
+	height: 90rpx;
+	background: #FFFFFF;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.08);
+	transition: all 0.3s;
+	flex-shrink: 0;
+}
+
+.icon-btn:active {
+	transform: scale(0.92);
+	background: #F5F5F5;
 }
 
 .input-wrapper {

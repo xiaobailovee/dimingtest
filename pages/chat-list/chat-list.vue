@@ -49,17 +49,62 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { chatList as chatListData } from '@/utils/mock-data.js';
+import { useChatStore } from '@/stores/chat.js';
+
+// 使用Pinia store
+const chatStore = useChatStore();
 
 // 对话列表数据
-const chatList = ref([]);
-// 下拉刷新状态
-const refreshing = ref(false);
+const refreshing = ref(false); // 下拉刷新状态
 
-// 页面加载时初始化数据
-onMounted(() => {
-	chatList.value = chatListData;
+/**
+ * 计算属性：动态生成对话列表，包含最新消息和未读数量
+ */
+const chatList = computed(() => {
+	return chatListData.map(chat => {
+		// 从store获取该对话的消息列表
+		const messages = chatStore.getMessagesByChatId(chat.id);
+		
+		// 获取最后一条消息
+		const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+		
+		// 生成最后消息预览文本
+		let lastMessage = chat.lastMessage; // 默认值
+		if (lastMsg) {
+			if (lastMsg.content) {
+				// 有文字内容，显示文字（最多20个字符）
+				lastMessage = lastMsg.content.length > 20 
+					? lastMsg.content.substring(0, 20) + '...' 
+					: lastMsg.content;
+			} else if (lastMsg.images && lastMsg.images.length > 0) {
+				// 纯图片消息
+				lastMessage = `[图片]`;
+			} else if (lastMsg.image) {
+				// 旧版单图
+				lastMessage = `[图片]`;
+			}
+		}
+		
+		// 获取未读消息数量（只计算对方发送的消息）
+		const unread = chatStore.getUnreadCount(chat.id);
+		
+		return {
+			...chat,
+			lastMessage,
+			time: lastMsg ? lastMsg.time : chat.time, // 使用最新消息的时间
+			unread // 动态未读数量
+		};
+	});
+});
+
+/**
+ * 页面显示时刷新列表
+ */
+onShow(() => {
+	// 列表会自动更新，因为使用了computed
 });
 
 /**
@@ -67,11 +112,8 @@ onMounted(() => {
  * @param {number} chatId - 聊天ID
  */
 const openChat = (chatId) => {
-	// 清除未读消息红点
-	const chat = chatList.value.find(c => c.id === chatId);
-	if (chat) {
-		chat.unread = 0;
-	}
+	// 标记为已读（清除未读气泡）
+	chatStore.markAsRead(chatId);
 	
 	// 跳转到聊天详情页
 	uni.navigateTo({
@@ -87,8 +129,6 @@ const onRefresh = () => {
 	
 	// 模拟刷新数据（实际项目中应调用API）
 	setTimeout(() => {
-		chatList.value = chatListData;
-		
 		uni.showToast({
 			title: '刷新成功',
 			icon: 'success',
